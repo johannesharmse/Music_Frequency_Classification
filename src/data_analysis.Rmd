@@ -10,44 +10,110 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+library(parallel)
+library(iterators)
 library(tidyverse)
 library(tuneR)
 library(phonTools)
 ```
 
 ```{r}
+# library(foreach)
+# library(doParallel)
+
+split = ifelse(detectCores() > 5, 5, detectCores())
+eachStart = 100/detectCores()
+
+cl = makeCluster(split)
+init = clusterEvalQ(cl, { library(tidyverse) 
+  library(tuneR)
+  library(phonTools); NULL })
+
+results = parLapplyLB(cl
+                      ,rep(eachStart, split)
+                      ,function(nstart) kmeans(Boston, 4, nstart=nstart))
+withinss = sapply(results, function(result) result$tot.withinss)
+result = results[[which.min(withinss)]]
+stopCluster(cl)
+```
+
+```{r}
+song_freqs <- function(song_directory){
+  
+  song_file <- readMP3(filename = song_directory)
+        
+  rate <- song_file@samp.rate
+  song_file <- song_file@left
+  duration <- length(song_file) / rate
+  
+  frequency_seconds <- 
+    lapply(2:duration, 
+                      function(x) 
+               max(Re(fft(song_file[as.integer((x-1)*rate):as.integer(x*rate)]))))
+  
+  names(frequency_seconds) <- paste0('second_', 1:(duration-1))
+  
+  frequency_seconds <- as.data.frame(frequency_seconds)
+  frequency_seconds$playlist <- playlist
+  
+  return(frequency_seconds)
+}
+```
+
+
+```{r}
+split = ifelse(detectCores() > 5, 5, detectCores())
+eachStart = 100/detectCores()
+
+cl = makeCluster(split)
+init = clusterEvalQ(cl, { library(tidyverse) 
+  library(tuneR)
+  library(phonTools); NULL })
+
+
 playlist_folders <- list.files(path = paste0('../../data/music/'), pattern = 'Playlist - *')
 
 song_frequencies <- data_frame('playlist' = character(0))
 
+songs_parallel = c()
+
+count = 0
+
+message(count)
+
 for (playlist in playlist_folders){
   playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
-  for (song in playlist_songs){
+  for (song_i in 1:length(playlist_songs)){
     if (file.exists(paste0('../../data/music/', playlist, '/', song))){
-      song_file <- readMP3(filename = 
-                                  paste0('../../data/music/', 
-                                playlist, '/', song))
       
-      rate <- song_file@samp.rate
-      song_file <- song_file@left
-      duration <- length(song_file) / rate
+      songs_parallel[length(songs_parallel) + 1] <- paste0('../../data/music/', 
+                                playlist, '/', song)
       
-      frequency_seconds <- 
-        lapply(2:duration, 
-                          function(x) 
-                   max(Re(fft(song_file[as.integer((x-1)*rate):as.integer(x*rate)]))))
-      
-      names(frequency_seconds) <- paste0('second_', 1:(duration-1))
-      
-      frequency_seconds <- as.data.frame(frequency_seconds)
-      
-      frequency_seconds$playlist <- playlist
-      
-      song_frequencies <- bind_rows(song_frequencies, frequency_seconds)
-    }
+      if (length(songs_parallel) == split){
+        
+        songs <- parLapplyLB(cl, 
+                              1:length(songs_parallel), 
+                              function(song_loc) 
+                                song_freqs(song_directory = song_loc))
+        
+        for (song_j in 1:length(songs)){
+          song_frequencies <- bind_rows(song_frequencies, songs[[song_j]])
+        }
+        
+        songs_parallel <- c()
+        
+        count = count + split
+        
+        message(count)
+        
+      }
     
+    }
   }
+    
 }
+
+stopCluster(cl)
 
 ```
 
