@@ -16,16 +16,16 @@ library(phonTools)
 ```
 
 ```{r}
-playlist_folders <- list.files(path = paste0('../../Personal/Music/'), pattern = 'Playlist - *')
+playlist_folders <- list.files(path = paste0('../../data/music/'), pattern = 'Playlist - *')
 
 song_frequencies <- data_frame('playlist' = character(0))
 
 for (playlist in playlist_folders){
-  playlist_songs <- list.files(path = paste0('../../Personal/Music/', playlist, '/'), pattern = '*.mp3')
+  playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
   for (song in playlist_songs){
-    if (file.exists(paste0('../../Personal/Music/', playlist, '/', song))){
+    if (file.exists(paste0('../../data/music/', playlist, '/', song))){
       song_file <- readMP3(filename = 
-                                  paste0('../../Personal/Music/', 
+                                  paste0('../../data/music/', 
                                 playlist, '/', song))
       
       rate <- song_file@samp.rate
