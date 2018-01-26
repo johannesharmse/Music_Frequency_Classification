@@ -18,23 +18,23 @@ library(phonTools)
 ```
 
 ```{r}
-# library(foreach)
-# library(doParallel)
-
-split = ifelse(detectCores() > 5, 5, detectCores())
-eachStart = 100/detectCores()
-
-cl = makeCluster(split)
-init = clusterEvalQ(cl, { library(tidyverse) 
-  library(tuneR)
-  library(phonTools); NULL })
-
-results = parLapplyLB(cl
-                      ,rep(eachStart, split)
-                      ,function(nstart) kmeans(Boston, 4, nstart=nstart))
-withinss = sapply(results, function(result) result$tot.withinss)
-result = results[[which.min(withinss)]]
-stopCluster(cl)
+# # library(foreach)
+# # library(doParallel)
+# 
+# split = ifelse(detectCores() > 5, 5, detectCores())
+# eachStart = 100/detectCores()
+# 
+# cl = makeCluster(split)
+# init = clusterEvalQ(cl, { library(tidyverse) 
+#   library(tuneR)
+#   library(phonTools); NULL })
+# 
+# results = parLapplyLB(cl
+#                       ,rep(eachStart, split)
+#                       ,function(nstart) kmeans(Boston, 4, nstart=nstart))
+# withinss = sapply(results, function(result) result$tot.withinss)
+# result = results[[which.min(withinss)]]
+# stopCluster(cl)
 ```
 
 ```{r}
@@ -62,8 +62,10 @@ song_freqs <- function(song_directory){
 
 
 ```{r}
-split = ifelse(detectCores() > 5, 5, detectCores())
-eachStart = 100/detectCores()
+# split = ifelse(detectCores() > 5, 5, detectCores())
+# eachStart = 100/detectCores()
+
+split = detectCores()
 
 cl = makeCluster(split)
 init = clusterEvalQ(cl, { library(tidyverse) 
@@ -84,10 +86,10 @@ message(count)
 for (playlist in playlist_folders){
   playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
   for (song_i in 1:length(playlist_songs)){
-    if (file.exists(paste0('../../data/music/', playlist, '/', song))){
+    if (file.exists(paste0('../../data/music/', playlist, '/', song_i))){
       
       songs_parallel[length(songs_parallel) + 1] <- paste0('../../data/music/', 
-                                playlist, '/', song)
+                                playlist, '/', song_i)
       
       if (length(songs_parallel) == split){
         
