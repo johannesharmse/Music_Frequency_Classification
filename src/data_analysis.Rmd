@@ -70,7 +70,8 @@ split = detectCores()
 cl = makeCluster(split)
 init = clusterEvalQ(cl, { library(tidyverse) 
   library(tuneR)
-  library(phonTools); NULL })
+  library(phonTools)
+  song_freqs <- function(song_directory){song_frequencies(song_directory = song_directory)}; NULL })
 
 
 playlist_folders <- list.files(path = paste0('../../data/music/'), pattern = 'Playlist - *')
