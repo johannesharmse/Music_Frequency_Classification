@@ -86,12 +86,12 @@ message(count)
 for (playlist in playlist_folders){
   playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
   for (song_i in 1:length(playlist_songs)){
-    if (file.exists(paste0('../../data/music/', playlist, '/', song_i))){
+    if (file.exists(paste0('../../data/music/', playlist, '/', playlist_songs[song_i]))){
       
       songs_parallel[length(songs_parallel) + 1] <- paste0('../../data/music/', 
-                                playlist, '/', song_i)
+                                playlist, '/', playlist_songs[song_i])
       
-      if (length(songs_parallel) == split){
+      if (length(songs_parallel) == as.numeric(split)){
         
         songs <- parLapplyLB(cl, 
                               1:length(songs_parallel), 
