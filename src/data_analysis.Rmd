@@ -68,53 +68,113 @@ song_freqs <- function(song_directory){
 split = detectCores()
 
 cl = makeCluster(split)
-init = clusterEvalQ(cl, { library(tidyverse) 
+init = clusterEvalQ(cl, { library(tidyverse)
   library(tuneR)
   library(phonTools)
-  song_freqs <- function(song_directory){song_frequencies(song_directory = song_directory)}; NULL })
+  song_freqs <- function(core){
+  
+    playlist_folders <- list.files(path = paste0('../../data/music/'), pattern = 'Playlist - *')
+    song_frequencies <- data_frame('playlist' = character(0))
+    songs_parallel = c()
+    count = 0
+    message(count)
+    core_songs <- list()
+    core_i <- 1
+    songs_parallel_list <- list()
 
-
-playlist_folders <- list.files(path = paste0('../../data/music/'), pattern = 'Playlist - *')
-
-song_frequencies <- data_frame('playlist' = character(0))
-
-songs_parallel = c()
-
-count = 0
-
-message(count)
-
-for (playlist in playlist_folders){
-  playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
-  for (song_i in 1:length(playlist_songs)){
-    if (file.exists(paste0('../../data/music/', playlist, '/', playlist_songs[song_i]))){
+    for (playlist in playlist_folders){
+      playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
+      for (song_i in 1:length(playlist_songs)){
+        if (file.exists(paste0('../../data/music/', playlist, '/', playlist_songs[song_i]))){
       
-      songs_parallel[length(songs_parallel) + 1] <- paste0('../../data/music/', 
+          songs_parallel[length(songs_parallel) + 1] <- paste0('../../data/music/', 
                                 playlist, '/', playlist_songs[song_i])
-      
-      if (length(songs_parallel) == as.numeric(split)){
-        
-        songs <- parLapplyLB(cl, 
-                              1:length(songs_parallel), 
-                              function(song_loc) 
-                                song_freqs(song_directory = song_loc))
-        
-        for (song_j in 1:length(songs)){
-          song_frequencies <- bind_rows(song_frequencies, songs[[song_j]])
+          
+          songs_parallel_list[[length(songs_parallel_list) + 1]] <- songs_parallel
+          
         }
-        
-        songs_parallel <- c()
-        
-        count = count + split
-        
-        message(count)
-        
       }
-    
     }
-  }
     
+    songs_parallel_list <- unlist(songs_parallel_list)
+    
+    songs_divide <- floor(length(songs_parallel_list)/8)
+    
+    for (song_core in (1 + ((core-1)*songs_divide)):(songs_divide+ ((core-1)*songs_divide))){
+      song_directory <- songs_parallel_list[song_core]
+      song_file <- readMP3(filename = song_directory)
+      rate <- song_file@samp.rate
+      song_file <- song_file@left
+      duration <- length(song_file) / rate
+      
+      frequency_seconds <-
+        lapply(2:duration,
+                          function(x)
+                   max(Re(fft(song_file[as.integer((x-1)*rate):as.integer(x*rate)]))))
+    
+      names(frequency_seconds) <- paste0('second_', 1:(duration-1))
+    
+      frequency_seconds <- as.data.frame(frequency_seconds)
+      frequency_seconds$playlist <- playlist
+      
+      song_frequencies <- bind_rows(song_frequencies, frequency_seconds)
+      
+    }
+            
+    return(song_frequencies)
+  # return(frequency_seconds)
+  }; 
+  NULL })
+  
+  
+  
+  
+  
+# playlist_folders <- list.files(path = paste0('../../data/music/'), pattern = 'Playlist - *')
+# 
+# song_frequencies <- data_frame('playlist' = character(0))
+# 
+# songs_parallel = c()
+# 
+# count = 0
+# 
+# message(count)
+# 
+# for (playlist in playlist_folders){
+#   playlist_songs <- list.files(path = paste0('../../data/music/', playlist, '/'), pattern = '*.mp3')
+#   for (song_i in 1:length(playlist_songs)){
+#     if (file.exists(paste0('../../data/music/', playlist, '/', playlist_songs[song_i]))){
+#       
+#       songs_parallel[length(songs_parallel) + 1] <- paste0('../../data/music/', 
+#                                 playlist, '/', playlist_songs[song_i])
+#       
+#       if (length(songs_parallel) == as.numeric(split)){
+#         
+#         # message('test')
+# 
+
+songs <- parLapplyLB(cl, 
+                      1:8, 
+                      function(core) song_freqs(core = core))
+
+songs_all <- data_frame('playlist' = character(0))
+
+for (song_j in 1:length(songs)){
+  songs_all <- bind_rows(songs_all, songs[[song_j]])
 }
+#         
+#         songs_parallel <- c()
+#         
+#         count = count + split
+#         
+#         message(count)
+#         
+#       }
+#     
+#     }
+#   }
+#     
+# }
 
 stopCluster(cl)
 
